@@ -4,9 +4,10 @@
 Usage:
     python scripts/01_run_ocr.py --split val --engine easyocr [--limit 50] [--gpu]
 """
-import argparse
-import json
 import os
+import json
+import argparse
+import numpy as np
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -36,9 +37,18 @@ def main():
     out_path = os.path.join(out_dir, f"{args.split}_{engine_name}.json")
 
     cache = {}
+
+    def convert(obj):
+        if isinstance(obj, np.integer):
+            return int(obj)
+        if isinstance(obj, np.floating):
+            return float(obj)
+        if isinstance(obj, np.ndarray):
+            return obj.tolist()
+        raise TypeError(f"{type(obj)} not serializable")
     if os.path.exists(out_path):
-        with open(out_path) as f:
-            cache = json.load(f)
+        with open(out_path, "w") as f:
+            json.dump(cache, f, default=convert)
 
     for i in tqdm(range(len(ds)), desc=f"OCR[{engine_name}]"):
         m = ds.meta(i)
@@ -52,10 +62,10 @@ def main():
             cache[key] = []
         if i % 200 == 0:
             with open(out_path, "w") as f:
-                json.dump(cache, f)
+                json.dump(cache, f, default=convert)
 
     with open(out_path, "w") as f:
-        json.dump(cache, f)
+        json.dump(cache, f, default=convert)
     print(f"wrote {out_path}  ({len(cache)} images)")
 
 
